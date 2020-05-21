@@ -31,6 +31,7 @@ import (
 type encoder struct {
 	emitter  yaml_emitter_t
 	event    yaml_event_t
+	hook     func(in interface{}) (ok bool, out interface{}, err error)
 	out      []byte
 	flow     bool
 	indent   int
@@ -114,7 +115,22 @@ func (e *encoder) marshal(tag string, in reflect.Value) {
 		e.nilv()
 		return
 	}
+
 	iface := in.Interface()
+	if e.hook != nil {
+		ok, out, err := e.hook(iface)
+		if ok {
+			if err != nil {
+				fail(err)
+			}
+			if out == nil {
+				e.nilv()
+				return
+			}
+			iface = out
+		}
+	}
+
 	switch value := iface.(type) {
 	case *Node:
 		e.nodev(in)
